@@ -1,0 +1,50 @@
+package com.abc.ppmimage;
+
+import com.abc.pp.fifo.deluxe_bounded.*;
+import com.abc.thread.*;
+
+// Consumer of FlipHorizontally's output fifo and producer of
+// final result fifo ready to be processed
+public class Grayscale {
+    private final PPDeluxeBoundedFifo<PpmImage.Row> inputFifo;
+    private final PPDeluxeBoundedFifo<PpmImage> outputFifo;
+    private PpmImage originalImage;
+
+    private volatile boolean keepGoing;
+    private Thread internalThread;
+
+    public Grayscale(PPDeluxeBoundedFifo<PpmImage.Row> inputFifo, PPDeluxeBoundedFifo<PpmImage> outputFifo, PpmImage originalImage) {
+        this.inputFifo = inputFifo;
+        this.outputFifo = outputFifo;
+        this.originalImage = originalImage;
+
+        keepGoing = true;
+        internalThread = new Thread(this::runWork, "gray");
+        internalThread.start();
+    }
+
+    /** to do
+     * fix this code to work for a thread using the fifo
+     */
+
+    private void runWork() {
+        ThreadTools.outln("%s starting", getClass().getSimpleName());
+        try {
+            PpmImage.Row[] newRows = new PpmImage.Row[originalImage.getRowCount()];
+            for (int rowIndex = 0; rowIndex < inputFifo.getCount(); rowIndex++) {
+                    PpmImage.Pixel[] newPixelsForRow = new PpmImage.Pixel[originalImage.getColumnCount()];
+                    for (int colIndex = 0; colIndex < newPixelsForRow.length; colIndex++) {
+                        newPixelsForRow[colIndex] = originalImage.getPixelAt(rowIndex, colIndex);
+                    }
+                    newRows[rowIndex] = new PpmImage.Row(newPixelsForRow);
+                }
+            } catch (InterruptedException x) {
+                // ignore and let the thread die
+        } finally {
+            ThreadTools.outln("%s finished", getClass().getSimpleName());
+        }
+    }
+
+
+
+}
