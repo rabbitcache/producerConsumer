@@ -5,13 +5,13 @@ import com.abc.thread.*;
 
 public class FlipHorizontally {
 
-    private final PPDeluxeBoundedFifo<PpmImage.Row> outputFifo;
+    private final PPDeluxeBoundedFifo<PpmImage> outputFifo;
     private PpmImage originalImage;
 
     private volatile boolean keepGoing;
     private Thread internalThread;
 
-    public FlipHorizontally(PpmImage originalImage,PPDeluxeBoundedFifo<PpmImage.Row> outputFifo) {
+    public FlipHorizontally(PpmImage originalImage,PPDeluxeBoundedFifo<PpmImage> outputFifo) {
         this.originalImage = originalImage;
         this.outputFifo = outputFifo;
 
@@ -23,9 +23,11 @@ public class FlipHorizontally {
 
     private void runWork() {
         try {
-            for (int rowIndex = 0; rowIndex < originalImage.getRowCount(); rowIndex++) {
-            outputFifo.add(originalImage.getRowAt(rowIndex).asRowFlippedHorizontally());
+            PpmImage.Row[] newRows = new PpmImage.Row[originalImage.getRowCount()];
+            for (int rowIndex = 0; rowIndex < newRows.length; rowIndex++) {
+                newRows[rowIndex] = originalImage.getRowAt(rowIndex).asRowFlippedHorizontally();
             }
+            outputFifo.add(new PpmImage(newRows));
         } catch (InterruptedException x) {
             // ignore, return, and let the thread die
         } finally {
