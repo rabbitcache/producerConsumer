@@ -1,0 +1,37 @@
+package com.abc.ppmimage;
+
+import com.abc.pp.fifo.deluxe_bounded.*;
+import com.abc.thread.*;
+
+public class FlipHorizontally {
+
+    private final PPDeluxeBoundedFifo<PpmImage.Row> outputFifo;
+    private PpmImage originalImage;
+
+    private volatile boolean keepGoing;
+    private Thread internalThread;
+
+    public FlipHorizontally(PpmImage originalImage,PPDeluxeBoundedFifo<PpmImage.Row> outputFifo) {
+        this.originalImage = originalImage;
+        this.outputFifo = outputFifo;
+
+        keepGoing = true;
+        internalThread = new Thread(this::runWork, "flip");
+        internalThread.start();
+
+    }
+
+    private void runWork() {
+        try {
+            for (int rowIndex = 0; rowIndex < originalImage.getRowCount(); rowIndex++) {
+            outputFifo.add(originalImage.getRowAt(rowIndex).asRowFlippedHorizontally());
+            }
+        } catch (InterruptedException x) {
+            // ignore, return, and let the thread die
+        } finally {
+            ThreadTools.outln("%s finished", getClass().getSimpleName());
+        }
+
+    }
+
+}
