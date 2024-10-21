@@ -1,0 +1,50 @@
+package com.abc.ppmimage;
+
+import java.io.*;
+
+import com.abc.pp.fifo.deluxe_bounded.*;
+import com.abc.pp.fifo.deluxe_bounded.PPDeluxeBoundedFifo.*;
+import com.abc.thread.*;
+
+public class Write {
+    private final PPDeluxeBoundedFifo<PpmImage> inputFifo;
+    private final String name;
+
+    private volatile boolean keepGoing;
+    private Thread internalThread;
+
+    public Write(PPDeluxeBoundedFifo<PpmImage> inputFifo, String name) {
+        this.inputFifo = inputFifo;
+        this.name = name;
+
+        keepGoing = true;
+        internalThread = new Thread(this::runWork, "writer");
+        internalThread.start();
+    }
+
+    private void runWork() {
+        ThreadTools.outln("%s starting", getClass().getSimpleName());
+        int i = 0;
+        try {
+            while (keepGoing) {
+                RemoveSingleResult<PpmImage> removeResult = inputFifo.remove();
+                switch (removeResult.getStatus()) {
+                    case EMPTY_AND_NO_MORE_ADDS_ALLOWED: return;
+                    case SUCCESS:
+                        PpmImage image = removeResult.getItem();
+                        image.writeToFilename("src/images/" + name + "-flipped-horiz-and-grayscaled.ppm");
+                        i++;
+                }
+            }
+        } catch (InterruptedException x) {
+            // ignore, return, and let die
+        } catch (FileNotFoundException x) {
+            x.printStackTrace();
+        } catch (IOException x) {
+            x.printStackTrace();
+        } finally {
+            ThreadTools.outln("%s finished", getClass().getSimpleName());
+        }
+    }
+
+}
