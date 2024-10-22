@@ -1,0 +1,66 @@
+package com.abc.pipeline;
+
+import java.io.*;
+
+import com.abc.pp.fifo.deluxe_bounded.*;
+import com.abc.ppmimage.*;
+import com.abc.thread.*;
+
+public class Read {
+    private final PPDeluxeBoundedFifo<PpmImage.Row> outputFifo;
+    private final String name;
+
+    private volatile boolean keepGoing;
+    private Thread internalThread;
+
+    public static int numRows;
+    public static int numCols;
+
+    public Read(PPDeluxeBoundedFifo<PpmImage.Row>outputFifo, String name) {
+        this.outputFifo = outputFifo;
+        this.name = name;
+
+        keepGoing = true;
+        internalThread = new Thread(this::runWork, "read");
+        internalThread.start();
+    }
+
+    private void runWork() {
+        ThreadTools.outln("%s starting", getClass().getSimpleName());
+        try {
+            // creating files
+            NanoTimer ioTimer = NanoTimer.createStopped();
+            ioTimer.start();
+            ThreadTools.outln("reading " + name + "...");
+            PpmImage originalImage = PpmImage.createFromFilename("src/images/" + name + ".ppm");
+
+
+
+            // add files row by row to fifo
+            for (int i = 0; i < originalImage.getRowCount(); i++) {
+                outputFifo.add(originalImage.getRowAt(i));
+            }
+
+            ioTimer.stop();
+
+        } catch (InterruptedException x) {
+            // ignore, return and let the thread die
+        } catch (FileNotFoundException x) {
+            // won't happen
+            x.printStackTrace();
+        } catch (IOException x) {
+            // won't happen
+            x.printStackTrace();
+        } finally {
+            ThreadTools.outln("%s finished", getClass().getSimpleName());
+        }
+    }
+
+    public boolean isAlive() { return internalThread.isAlive(); }
+    public void waitUntilStopped() throws InterruptedException { internalThread.join(); }
+    public void stopRequest() {
+        keepGoing = false;
+        internalThread.interrupt();
+    }
+
+}
