@@ -1,7 +1,6 @@
 package com.abc.ppmimage;
 
-import java.io.*;
-
+import com.abc.pipeline.*;
 import com.abc.pp.fifo.deluxe_bounded.*;
 import com.abc.pp.fifo.deluxe_bounded.impl.*;
 import com.abc.thread.*;
@@ -15,33 +14,23 @@ public class PpmImageDemo {
 
 
         try {
-            PPDeluxeBoundedFifo<PpmImage> imageFlipped = new CircularArrayPPDeluxeBoundedFifo<>(10, PpmImage.class);
-            PPDeluxeBoundedFifo<PpmImage> imageGrayFlipped = new CircularArrayPPDeluxeBoundedFifo<>(10, PpmImage.class);
+            PPDeluxeBoundedFifo<PpmImage.Row> imageStart = new CircularArrayPPDeluxeBoundedFifo<>(10, PpmImage.Row.class);
+            PPDeluxeBoundedFifo<PpmImage.Row> imageFlipped = new CircularArrayPPDeluxeBoundedFifo<>(10, PpmImage.Row.class);
+            PPDeluxeBoundedFifo<PpmImage.Row> imageGrayFlipped = new CircularArrayPPDeluxeBoundedFifo<>(10, PpmImage.Row.class);
 
-            ioTimer.start();
-            PpmImage penguinOriginal = PpmImage.createFromFilename("src/images/penguin.ppm");
-            PpmImage flowerOriginal = PpmImage.createFromFilename("src/images/flowers.ppm");
-            ioTimer.stop();
+            Read readPenguin = new Read(imageStart, "penguin");
+            Read readFlowers = new Read(imageStart, "flowers");
 
-            imageProcessingTimer.start();
-            FlipHorizontally flipPenguin = new FlipHorizontally(penguinOriginal, imageFlipped);
-            FlipHorizontally flipFlower = new FlipHorizontally(penguinOriginal, imageFlipped);
-            Grayscale flipGrayPenguin = new Grayscale(imageFlipped, imageGrayFlipped);
-            Grayscale flipGrayFlower = new Grayscale(imageFlipped, imageGrayFlipped);
-            imageProcessingTimer.stop();
+            FlipHorizontally flipPenguin = new FlipHorizontally(imageStart, imageFlipped);
+            FlipHorizontally flipFlower = new FlipHorizontally(imageStart, imageFlipped);
+            Grayscale flipGrayPenguin = new Grayscale(imageFlipped, imageGrayFlipped, "penguin");
+            Grayscale flipGrayFlower = new Grayscale(imageFlipped, imageGrayFlipped, "flowers");
 
-            ioTimer.start();
             Write writePenguin = new Write(imageGrayFlipped, "penguin");
             Write writeFlower = new Write(imageGrayFlipped, "flowers");
 
-        } catch (FileNotFoundException x) {
-            x.printStackTrace();
-        } catch (IOException x) {
-            x.printStackTrace();
         } finally {
-            timer.stop();
-            ThreadTools.outln("finished processing images, overall took %.5fs, %.5fs I/O, %.5fs image manipulation",
-                timer.getElapsedSeconds(), ioTimer.getElapsedSeconds(), imageProcessingTimer.getElapsedSeconds());
+            ThreadTools.outln("leaving main");
         }
     }
 }
