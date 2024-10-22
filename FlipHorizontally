@@ -1,18 +1,20 @@
-package com.abc.ppmimage;
+package com.abc.pipeline;
 
 import com.abc.pp.fifo.deluxe_bounded.*;
+import com.abc.pp.fifo.deluxe_bounded.PPDeluxeBoundedFifo.*;
+import com.abc.ppmimage.*;
 import com.abc.thread.*;
 
 public class FlipHorizontally {
 
-    private final PPDeluxeBoundedFifo<PpmImage> outputFifo;
-    private PpmImage originalImage;
+    private final PPDeluxeBoundedFifo<PpmImage.Row> inputFifo;
+    private final PPDeluxeBoundedFifo<PpmImage.Row> outputFifo;
 
     private volatile boolean keepGoing;
     private Thread internalThread;
 
-    public FlipHorizontally(PpmImage originalImage,PPDeluxeBoundedFifo<PpmImage> outputFifo) {
-        this.originalImage = originalImage;
+    public FlipHorizontally(PPDeluxeBoundedFifo<PpmImage.Row> inputFifo, PPDeluxeBoundedFifo<PpmImage.Row> outputFifo) {
+        this.inputFifo = inputFifo;
         this.outputFifo = outputFifo;
 
         keepGoing = true;
@@ -23,17 +25,31 @@ public class FlipHorizontally {
 
     private void runWork() {
         try {
-            PpmImage.Row[] newRows = new PpmImage.Row[originalImage.getRowCount()];
-            for (int rowIndex = 0; rowIndex < newRows.length; rowIndex++) {
-                newRows[rowIndex] = originalImage.getRowAt(rowIndex).asRowFlippedHorizontally();
+            ThreadTools.outln("%s starting", getClass().getSimpleName());
+            while (keepGoing) {
+                RemoveSingleResult<PpmImage.Row> removeResult = inputFifo.remove();
+                switch (removeResult.getStatus()) {
+                    case EMPTY_AND_NO_MORE_ADDS_ALLOWED:
+                        outputFifo.indicateNoMoreAddsAllowed();
+                        return;
+                    case SUCCESS:
+                        PpmImage.Row row = removeResult.getItem();
+                        outputFifo.add(row.asRowFlippedHorizontally());
+                }
             }
-            outputFifo.add(new PpmImage(newRows));
         } catch (InterruptedException x) {
             // ignore, return, and let the thread die
         } finally {
             ThreadTools.outln("%s finished", getClass().getSimpleName());
         }
 
+    }
+
+    public boolean isAlive() { return internalThread.isAlive(); }
+    public void waitUntilStopped() throws InterruptedException { internalThread.join(); }
+    public void stopRequest() {
+        keepGoing = false;
+        internalThread.interrupt();
     }
 
 }
