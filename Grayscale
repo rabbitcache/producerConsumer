@@ -1,48 +1,45 @@
-package com.abc.ppmimage;
+package com.abc.pipeline;
 
 import com.abc.pp.fifo.deluxe_bounded.*;
 import com.abc.pp.fifo.deluxe_bounded.PPDeluxeBoundedFifo.*;
+import com.abc.ppmimage.*;
 import com.abc.thread.*;
 
 // Consumer of FlipHorizontally's output fifo and producer of
 // final result fifo ready to be processed
 public class Grayscale {
-    private final PPDeluxeBoundedFifo<PpmImage> inputFifo;
-    private final PPDeluxeBoundedFifo<PpmImage> outputFifo;
+    private final PPDeluxeBoundedFifo<PpmImage.Row> inputFifo;
+    private final PPDeluxeBoundedFifo<PpmImage.Row> outputFifo;
+    private final String name;
 
     private volatile boolean keepGoing;
     private Thread internalThread;
 
-    public Grayscale(PPDeluxeBoundedFifo<PpmImage> inputFifo, PPDeluxeBoundedFifo<PpmImage> outputFifo) {
+    public Grayscale(PPDeluxeBoundedFifo<PpmImage.Row> inputFifo, PPDeluxeBoundedFifo<PpmImage.Row> outputFifo, String name) {
         this.inputFifo = inputFifo;
         this.outputFifo = outputFifo;
+        this.name = name;
         keepGoing = true;
         internalThread = new Thread(this::runWork, "gray");
         internalThread.start();
     }
 
-    /** to do
-     * fix this code to work for a thread using the fifo
-     */
-
     private void runWork() {
         ThreadTools.outln("%s starting", getClass().getSimpleName());
         try {
             while (keepGoing) {
-                RemoveSingleResult<PpmImage> removeResult = inputFifo.remove();
+                RemoveSingleResult<PpmImage.Row> removeResult = inputFifo.remove();
                 switch (removeResult.getStatus()) {
-                    case EMPTY_AND_NO_MORE_ADDS_ALLOWED: return;
+                    case EMPTY_AND_NO_MORE_ADDS_ALLOWED:
+                        outputFifo.indicateNoMoreAddsAllowed();
+                        return;
                     case SUCCESS:
-                        PpmImage flippedImage = removeResult.getItem();
-                        PpmImage.Row[] newRows = new PpmImage.Row[flippedImage.getRowCount()];
-                        for (int rowIndex = 0; rowIndex < newRows.length; rowIndex++) {
-                            PpmImage.Pixel[] newPixelsForRow = new PpmImage.Pixel[flippedImage.getColumnCount()];
-                            for (int colIndex = 0; colIndex < newPixelsForRow.length; colIndex++) {
-                                newPixelsForRow[colIndex] = flippedImage.getPixelAt(rowIndex, colIndex).asGrayscale();
-                            }
-                            newRows[rowIndex] = new PpmImage.Row(newPixelsForRow);
-                            }
-                        outputFifo.add(new PpmImage(newRows));
+                        PpmImage.Row row = removeResult.getItem();
+                        PpmImage.Pixel[] pixels = row.getPixels();
+                        for (int i = 0; i < pixels.length; i++) {
+                            pixels[i]= pixels[i].asGrayscale();
+                        }
+                        outputFifo.add(new PpmImage.Row(pixels));
                 }
             }
 
@@ -53,6 +50,11 @@ public class Grayscale {
         }
     }
 
-
+    public boolean isAlive() { return internalThread.isAlive(); }
+    public void waitUntilStopped() throws InterruptedException { internalThread.join(); }
+    public void stopRequest() {
+        keepGoing = false;
+        internalThread.interrupt();
+    
 
 }
