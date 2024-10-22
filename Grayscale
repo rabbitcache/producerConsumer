@@ -49,12 +49,11 @@ public class Grayscale {
             ThreadTools.outln("%s finished", getClass().getSimpleName());
         }
     }
-
     public boolean isAlive() { return internalThread.isAlive(); }
     public void waitUntilStopped() throws InterruptedException { internalThread.join(); }
     public void stopRequest() {
         keepGoing = false;
         internalThread.interrupt();
-    
+    }
 
 }
