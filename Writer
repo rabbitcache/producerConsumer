@@ -1,19 +1,20 @@
-package com.abc.ppmimage;
+package com.abc.pipeline;
 
 import java.io.*;
 
 import com.abc.pp.fifo.deluxe_bounded.*;
 import com.abc.pp.fifo.deluxe_bounded.PPDeluxeBoundedFifo.*;
+import com.abc.ppmimage.*;
 import com.abc.thread.*;
 
 public class Write {
-    private final PPDeluxeBoundedFifo<PpmImage> inputFifo;
+    private final PPDeluxeBoundedFifo<PpmImage.Row> inputFifo;
     private final String name;
 
     private volatile boolean keepGoing;
     private Thread internalThread;
 
-    public Write(PPDeluxeBoundedFifo<PpmImage> inputFifo, String name) {
+    public Write(PPDeluxeBoundedFifo<PpmImage.Row> inputFifo, String name) {
         this.inputFifo = inputFifo;
         this.name = name;
 
@@ -27,15 +28,18 @@ public class Write {
         int i = 0;
         try {
             while (keepGoing) {
-                RemoveSingleResult<PpmImage> removeResult = inputFifo.remove();
+                PpmImage.Row[] allRows = new PpmImage.Row[Read.numRows];
+                RemoveSingleResult<PpmImage.Row> removeResult = inputFifo.remove();
                 switch (removeResult.getStatus()) {
                     case EMPTY_AND_NO_MORE_ADDS_ALLOWED: return;
                     case SUCCESS:
-                        PpmImage image = removeResult.getItem();
-                        image.writeToFilename("src/images/" + name + "-flipped-horiz-and-grayscaled.ppm");
+                        allRows[i] = removeResult.getItem();
                         i++;
                 }
+                new PpmImage(allRows).writeToFilename("src/images/" + name + "-flipped-horiz-and-grayscaled.ppm");
+
             }
+
         } catch (InterruptedException x) {
             // ignore, return, and let die
         } catch (FileNotFoundException x) {
